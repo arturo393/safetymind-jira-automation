@@ -1,0 +1,6 @@
+jira
+pandas
+python-dotenv
+reportlab
+matplotlib
+seaborn
