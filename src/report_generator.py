@@ -272,3 +272,163 @@ Este informe muestra el progreso de las iniciativas de alto nivel (Épicas) en J
         """
         HTML(string=full_html).write_pdf(filename)
         print(f"PDF de Épicas generado: {filename}")
+
+    def generate_kickoff_report(self, project_info, activities, filename="kickoff_report.pdf"):
+        """Generates a Kickoff report with architecture and activity plan."""
+        from datetime import datetime
+        
+        full_html = f"""
+        <html>
+        <head>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                :root {{
+                    --safetymind-primary: #ffed01;
+                    --safetymind-black: #000000;
+                    --safetymind-gray: #adadad;
+                }}
+                body {{ font-family: 'Montserrat', sans-serif; color: var(--safetymind-black); margin: 30px; line-height: 1.6; }}
+                header {{ border-bottom: 4px solid var(--safetymind-primary); padding-bottom: 10px; margin-bottom: 20px; }}
+                .section {{ margin-bottom: 30px; }}
+                h1 {{ text-transform: uppercase; margin: 0; }}
+                h2 {{ background: var(--safetymind-primary); padding: 5px 10px; display: inline-block; border-radius: 4px; }}
+                .arch-box {{ border: 2px dashed var(--safetymind-gray); padding: 20px; text-align: center; background: #fefefe; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+                th {{ background-color: #f2f2f2; color: var(--safetymind-black); }}
+            </style>
+        </head>
+        <body>
+            <header>
+                <div style="float: right; font-weight: bold; font-size: 20px;">SAFETY<span style="color: var(--safetymind-primary);">MIND</span></div>
+                <h1>Informe de Kickoff</h1>
+                <p>Proyecto: {project_info.get('name', 'N/A')}</p>
+            </header>
+
+            <div class="section">
+                <h2>1. Objetivos del Proyecto</h2>
+                <p>{project_info.get('description', 'Definición de bases y alcance del proyecto de monitoreo.')}</p>
+            </div>
+
+            <div class="section">
+                <h2>2. Arquitectura del Sistema</h2>
+                <div class="arch-box">
+                    <p><strong>Diagrama de Componentes:</strong></p>
+                    <p>{project_info.get('architecture_desc', 'Conexión de cámaras IP -> Servidor Local -> Nube SafetyMind')}</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>3. Plan de Actividades (Jira)</h2>
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Actividad</th><th>Estado</th></tr>
+                    </thead>
+                    <tbody>
+                        {"".join([f"<tr><td>{a.key}</td><td>{a.fields.summary}</td><td>{a.fields.status.name}</td></tr>" for a in activities])}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 50px; text-align: center; font-size: 10px; color: var(--safetymind-gray);">
+                © {datetime.now().year} SafetyMind - Confidencial
+            </div>
+        </body>
+        </html>
+        """
+        HTML(string=full_html).write_pdf(filename)
+        print(f"Kickoff Report generado: {filename}")
+
+    def generate_progress_status_report(self, progress_data, increments, blockers, filename="avance_report.pdf"):
+        """Generates a progress report with milestones, percentage and blockers."""
+        from datetime import datetime
+        
+        full_html = f"""
+        <html>
+        <head>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                :root {{
+                    --safetymind-primary: #ffed01;
+                    --safetymind-black: #000000;
+                    --safetymind-gray: #adadad;
+                }}
+                body {{ font-family: 'Montserrat', sans-serif; margin: 30px; font-size: 14px; }}
+                .progress-container {{ background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 20px 0; }}
+                .progress-fill {{ background: var(--safetymind-primary); height: 100%; border-radius: 10px; text-align: right; padding-right: 10px; line-height: 25px; font-weight: bold; }}
+                .blocker-box {{ background: #fff5f5; border-left: 5px solid #ff4d4d; padding: 15px; margin-top: 20px; }}
+                h1 {{ border-bottom: 3px solid var(--safetymind-primary); }}
+            </style>
+        </head>
+        <body>
+            <div style="text-align: right; font-weight: bold; font-size: 20px;">SAFETY<span style="color: var(--safetymind-primary);">MIND</span></div>
+            <h1>Estado de Avance del Proyecto</h1>
+            
+            <h3>Progreso General</h3>
+            <div class="progress-container">
+                <div class="progress-fill" style="width: {progress_data.get('percentage', 0)}%">{progress_data.get('percentage', 0)}%</div>
+            </div>
+
+            <h3>Actividades Realizadas</h3>
+            <ul>
+                {"".join([f"<li><strong>{i.key}</strong>: {i.fields.summary} - <span style='color:green'>Completado</span></li>" for i in increments])}
+            </ul>
+
+            <h3>Inconvenientes y Bloqueos</h3>
+            <div class="blocker-box">
+                {f"<p>{blockers}</p>" if blockers else "<p>No se reportan bloqueos hasta la fecha.</p>"}
+            </div>
+        </body>
+        </html>
+        """
+        HTML(string=full_html).write_pdf(filename)
+        print(f"Progress Report generado: {filename}")
+
+    def generate_final_report(self, implementation_details, deviations, filename="informe_final.pdf"):
+        """Generates a final delivery report with technical details of cameras, IPs, etc."""
+        from datetime import datetime
+        
+        cameras_html = "".join([f"<tr><td>{c['name']}</td><td>{c['ip']}</td><td>{c['telegram_group']}</td><td>{c['status']}</td></tr>" for c in implementation_details.get('cameras', [])])
+
+        full_html = f"""
+        <html>
+        <head>
+             <style>
+                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                :root {{ --safetymind-primary: #ffed01; --safetymind-black: #000000; }}
+                body {{ font-family: 'Montserrat', sans-serif; margin: 30px; }}
+                header {{ background: var(--safetymind-black); color: white; padding: 20px; text-align: center; border-bottom: 5px solid var(--safetymind-primary); }}
+                .tech-table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                .tech-table th, .tech-table td {{ border: 1px solid #ddd; padding: 10px; }}
+                .tech-table th {{ background: #333; color: white; }}
+                .deviation-box {{ background: #f9f9f9; padding: 15px; border-left: 5px solid var(--safetymind-primary); margin-top: 20px; }}
+            </style>
+        </head>
+        <body>
+            <header>
+                <h1>INFORME FINAL DE IMPLEMENTACIÓN</h1>
+                <p>SafetyMind AI Visual Auditing</p>
+            </header>
+
+            <h3>1. Detalle Técnico de Instalación (Cámaras)</h3>
+            <table class="tech-table">
+                <thead>
+                    <tr><th>Cámara</th><th>Dirección IP</th><th>Grupo Telegram</th><th>Estado</th></tr>
+                </thead>
+                <tbody>
+                    {cameras_html}
+                </tbody>
+            </table>
+
+            <h3>2. Modificaciones al Plan Original</h3>
+            <div class="deviation-box">
+                <p>{deviations if deviations else "Implementación realizada según plan original sin desviaciones."}</p>
+            </div>
+
+            <h3>3. Conclusiones</h3>
+            <p>El sistema se encuentra operativo y transmitiendo alertas en tiempo real.</p>
+        </body>
+        </html>
+        """
+        HTML(string=full_html).write_pdf(filename)
+        print(f"Final Report generado: {filename}")
