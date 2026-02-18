@@ -3,8 +3,8 @@ import argparse
 import yaml
 from datetime import datetime
 from dotenv import load_dotenv
-from jira_client import JiraClient
-from report_context import ReportContext # We will create this next
+from clients.jira_client import JiraClient
+from reporting.report_context import ReportContext 
 from jinja2 import Environment, FileSystemLoader
 
 # Load Env
@@ -24,7 +24,9 @@ def get_jira_client():
     return client
 
 def render_template(template_name, context, output_path):
-    env = Environment(loader=FileSystemLoader('templates'))
+    # Templates are now relative to project root
+    template_dir = os.path.join(os.getcwd(), 'templates')
+    env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template(template_name)
     html_content = template.render(context)
     
