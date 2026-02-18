@@ -43,12 +43,52 @@ class ReportContext:
         return ctx
 
     def _build_progress_context(self):
-        # Implementation for progress context
-        pass 
+        ctx = self._get_base_context("Informe de Avance")
+        
+        # Fetch active and closed issues
+        active_issues = self.jira.jira.search_issues(f'project = "{self.project_key}" AND status NOT IN ("Done", "Completado", "Cerrado")')
+        closed_issues = self.jira.jira.search_issues(f'project = "{self.project_key}" AND status IN ("Done", "Completado", "Cerrado") ORDER BY updated DESC', maxResults=10)
+        
+        total = len(active_issues) + len(closed_issues)
+        percentage = int((len(closed_issues) / total * 100)) if total > 0 else 0
+        
+        # Calculate Critical Path (High Priority + Overdue)
+        critical_path = []
+        today = datetime.now()
+        for i in active_issues:
+            priority = getattr(i.fields.priority, 'name', 'Medium')
+            due_str = getattr(i.fields, 'duedate', None)
+            reason = ""
+            
+            if priority in ['High', 'Highest', 'Critical']:
+                reason = f"Prioridad: {priority}"
+            
+            if due_str:
+                due = datetime.strptime(due_str, "%Y-%m-%d")
+                if due < today:
+                    reason += f" | Vencida: {due_str}"
+            
+            if reason:
+                critical_path.append({"key": i.key, "summary": i.fields.summary, "reason": reason})
+
+        ctx.update({
+            "percentage": percentage,
+            "blockers": self.config.get('blockers_default', 'Sin bloqueos mayores.'),
+            "critical_path": critical_path,
+            "completed_tasks": [{"key": i.key, "summary": i.fields.summary, "updated": i.fields.updated[:10]} for i in closed_issues],
+            "pending_tasks": [{"key": i.key, "summary": i.fields.summary, "priority": getattr(i.fields.priority, 'name', 'Normal')} for i in active_issues]
+        })
+        return ctx
 
     def _build_final_context(self):
-        # Implementation for final context
-        pass
+        ctx = self._get_base_context("Informe Final de Cierre")
+        ctx.update({
+            "description": self.config['description'],
+            "cameras": self.config.get('cameras', []),
+            "deviations": self.config.get('deviations', []),
+            "lessons_learned": self.config.get('lessons_learned', []) # Future enhancement: Add to YAML
+        })
+        return ctx
 
     def _get_jira_activities(self):
         issues = self.jira.jira.search_issues(f'project = "{self.project_key}" ORDER BY created ASC')

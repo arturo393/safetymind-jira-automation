@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Executive Summary -->
+<h1>Informe de Cierre de Proyecto</h1>
+<p style="font-style: italic;">Fecha de Cierre: {{ report_date }}</p>
+
+<h2>1. Resumen Ejecutivo</h2>
+<p>{{ description }}</p>
+<p>El proyecto ha concluido exitosamente las fases de implementación y validación técnica.</p>
+
+<!-- Deliverables Validation (Scope Management) -->
+<h2>2. Entregables y Conformidad (Alcance)</h2>
+<div style="border: 1px solid #ddd; padding: 15px;">
+    <strong>Hardware Instalado (As-Built):</strong>
+    <table>
+        <thead>
+            <tr>
+                <th>Dispositivo</th>
+                <th>IP</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cam in cameras %}
+            <tr>
+                <td>{{ cam.name }}</td>
+                <td>{{ cam.ip }}</td>
+                <td style="color: {% if cam.status == 'Online' %}green{% else %}red{% endif %}; font-weight: bold;">
+                    {{ cam.status }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Change Management (Deviations) -->
+<h2>3. Gestión de Cambios (Desviaciones)</h2>
+<div class="deviation-box">
+    {% if deviations %}
+    <ul>
+        {% for deviation in deviations %}
+        <li><strong>Cambio {{ loop.index }}:</strong> {{ deviation }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>El proyecto se ejecutó conforme al plan original sin cambios significativos.</p>
+    {% endif %}
+</div>
+
+<!-- Lessons Learned (Knowledge Management) -->
+<h2>4. Lecciones Aprendidas (Mejora Continua)</h2>
+<ul>
+    <li><strong>Qué funcionó bien:</strong> La integración con Telegram para alertas en tiempo real fue valorada
+        positivamente por el cliente.</li>
+    <li><strong>Qué mejorar:</strong> La coordinación de permisos de red (VPN) causó retrasos iniciales. Se recomienda
+        solicitar accesos con 2 semanas de antelación en futuros proyectos.</li>
+</ul>
+
+<!-- Acceptance/Sign-off -->
+<div style="margin-top: 50px; border-top: 2px solid #333; padding-top: 20px;">
+    <h3>5. Aceptación Final</h3>
+    <p>Mediante la presente, se certifica que los entregables cumplen con los requisitos estipulados.</p>
+    <br><br><br>
+    <div style="display: flex; justify-content: space-between;">
+        <div style="border-top: 1px solid #000; width: 40%; text-align: center;">Firma Project Manager<br>SafetyMind
+        </div>
+        <div style="border-top: 1px solid #000; width: 40%; text-align: center;">Firma Cliente (Sponsor)<br>{{
+            project_name }}</div>
+    </div>
+</div>
+{% endblock %}

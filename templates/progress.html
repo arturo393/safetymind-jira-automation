@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Executive Summary with RAG Status -->
+<div class="progress-section">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <span style="font-size: 14pt; font-weight: bold;">Salud del Proyecto</span>
+        </div>
+        <div>
+            <!-- RAG Status Indicators -->
+            <span
+                style="padding: 5px 10px; background: #4caf50; color: white; border-radius: 4px; font-weight: bold;">ALCANCE:
+                OK</span>
+            <span
+                style="padding: 5px 10px; background: {% if percentage < 50 %}#ff9800{% else %}#4caf50{% endif %}; color: white; border-radius: 4px; font-weight: bold;">TIEMPO:
+                {% if percentage < 50 %}ATRASADO{% else %}OK{% endif %}</span>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <strong>Progreso General Completado</strong>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="percentage">{{ percentage }}%</span>
+            <div style="width: 80%;">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: {{ percentage }}%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Critical Path / Risks (PMBOK Risk Management) -->
+<h2>Gestión de Riesgos y Bloqueos</h2>
+{% if critical_path %}
+<div class="critical-path">
+    <p><strong>⚠️ Atención Requerida (Ruta Crítica):</strong></p>
+    <ul>
+        {% for item in critical_path %}
+        <li><strong>{{ item.key }}</strong>: {{ item.summary }} <br> <span style="font-size: 0.9em; color: #d32f2f;">{{
+                item.reason }}</span></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if blockers %}
+<div class="blocker-box" style="margin-top: 15px;">
+    <p><strong>⛔ Impedimentos Actuales:</strong></p>
+    <p>{{ blockers }}</p>
+</div>
+{% else %}
+<div style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-left: 4px solid #4caf50;">
+    <p>No hay bloqueos activos reportados.</p>
+</div>
+{% endif %}
+
+<!-- Completed Work (Retrospective) -->
+<h2>Hitos Alcanzados (Último Periodo)</h2>
+{% if completed_tasks %}
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tarea Completada</th>
+            <th>Fecha</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for task in completed_tasks %}
+        <tr>
+            <td>{{ task.key }}</td>
+            <td>{{ task.summary }}</td>
+            <td>{{ task.updated }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No se cerraron tareas en este periodo.</p>
+{% endif %}
+
+<!-- Next Steps (Lookahead) -->
+<h2>Próximos Pasos (Planificación)</h2>
+<ul>
+    {% for task in pending_tasks[:5] %}
+    <li>Procesar: <strong>{{ task.summary }}</strong> ({{ task.priority }})</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}
