@@ -1,0 +1,23 @@
+projects:
+  GMF:
+    jira_key: "GMF"
+    name: "SafetyMind GMF Implementation"
+    description: "Implementación de sistema de monitoreo AI para GMF. Detección de EPP y comportamientos inseguros."
+    architecture_desc: "4 Cámaras Hikvision 4K -> Switch PoE -> Servidor On-Premise (Ubuntu + Apptainer) -> VPN WireGuard -> Cloud Dashboard."
+    blockers_default: "Sin inconvenientes técnicos reportados."
+    cameras:
+      - {name: "Cam 1 - Acceso Norte", ip: "10.0.10.21", telegram: "@SafetyMind_GMF_Alerts"}
+      - {name: "Cam 2 - Zona Carga", ip: "10.0.10.22", telegram: "@SafetyMind_GMF_Alerts"}
+      - {name: "Cam 3 - Pasillo EPP", ip: "10.0.10.23", telegram: "@SafetyMind_GMF_Alerts_Criticos"}
+      - {name: "Cam 4 - Bodega", ip: "10.0.10.24", telegram: "@SafetyMind_GMF_Alerts"}
+    deviations: 
+      - "Cambio de switch PoE por modelo administrable para segmentación VLAN."
+
+  IM:
+    jira_key: "IM"
+    name: "SafetyMind Infrastructure Monitoring"
+    description: "Despliegue de analítica visual y monitoreo de infraestructura crítica."
+    architecture_desc: "Distributed Agents -> Prometheus/Grafana -> Jira Integration."
+    blockers_default: "Retraso en validación de VPN."
+    cameras:
+      - {name: "Cam Piloto 1", ip: "192.168.1.50", telegram: "@SafetyMind_IM_Alerts"}
