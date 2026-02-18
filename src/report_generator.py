@@ -273,111 +273,283 @@ Este informe muestra el progreso de las iniciativas de alto nivel (Épicas) en J
         HTML(string=full_html).write_pdf(filename)
         print(f"PDF de Épicas generado: {filename}")
 
-    def generate_kickoff_report(self, project_info, activities, filename="kickoff_report.pdf"):
-        """Generates a Kickoff report with architecture and activity plan."""
+    def _generate_critical_path_html(self, issues):
+        """Generates HTML for the Critical Path section based on high priority or overdue issues."""
+        critical_items = []
         from datetime import datetime
+        today = datetime.now()
+
+        for issue in issues:
+            # Check for critical criteria: High/Highest Priority OR Overdue
+            priority = getattr(issue.fields.priority, 'name', 'Medium')
+            due_date_str = getattr(issue.fields, 'duedate', None)
+            
+            is_critical = False
+            reason = ""
+            
+            if priority in ['High', 'Highest', 'Critical']:
+                is_critical = True
+                reason = f"Prioridad: {priority}"
+            
+            if due_date_str:
+                due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+                if due_date < today and issue.fields.status.name not in ['Done', 'Completado', 'Cerrado']:
+                    is_critical = True
+                    reason += f" | Vencida: {due_date_str}"
+
+            if is_critical:
+                critical_items.append(f"<li><strong>{issue.key}: {issue.fields.summary}</strong><br><span style='color:red; font-size:12px;'>{reason}</span></li>")
         
+        if not critical_items:
+            return "<p>No se detectaron elementos críticos activos.</p>"
+        
+        return "<ul>" + "".join(critical_items) + "</ul>"
+
+    def generate_kickoff_report(self, project_info, activities, filename="kickoff_report.pdf"):
+        """Generates a Kickoff report with architecture, activity plan and Gantt chart."""
+        from datetime import datetime
+        import base64
+        
+        # Format activities for Gantt chart generation
+        # Assuming 'activities' are Jira Issue objects
+        gantt_data = []
+        for a in activities:
+             # simple mapping for Gantt
+             start = getattr(a.fields, 'customfield_10015', None) # Start Date
+             due = getattr(a.fields, 'duedate', None)
+             gantt_data.append({
+                 'name': a.key, # Use key for brevity in chart
+                 'start': start,
+                 'due': due,
+                 'progress': 0 if a.fields.status.name not in ['Done', 'Completado'] else 100
+             })
+
+        # Generate Gantt Chart
+        gantt_path = self.generate_gantt_chart(gantt_data, "kickoff_gantt.png")
+        with open(gantt_path, "rb") as img_file:
+            img_base64 = base64.b64encode(img_file.read()).decode()
+
         full_html = f"""
         <html>
         <head>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
                 :root {{
                     --safetymind-primary: #ffed01;
                     --safetymind-black: #000000;
-                    --safetymind-gray: #adadad;
+                    --safetymind-gray: #666666;
+                    --safetymind-light-gray: #f4f4f4;
                 }}
-                body {{ font-family: 'Montserrat', sans-serif; color: var(--safetymind-black); margin: 30px; line-height: 1.6; }}
-                header {{ border-bottom: 4px solid var(--safetymind-primary); padding-bottom: 10px; margin-bottom: 20px; }}
-                .section {{ margin-bottom: 30px; }}
-                h1 {{ text-transform: uppercase; margin: 0; }}
-                h2 {{ background: var(--safetymind-primary); padding: 5px 10px; display: inline-block; border-radius: 4px; }}
-                .arch-box {{ border: 2px dashed var(--safetymind-gray); padding: 20px; text-align: center; background: #fefefe; }}
-                table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
-                th {{ background-color: #f2f2f2; color: var(--safetymind-black); }}
+                body {{ 
+                    font-family: 'Roboto', sans-serif; 
+                    color: #333; 
+                    margin: 40px; 
+                    line-height: 1.5; 
+                    font-size: 11pt; /* Professional document standard */
+                }}
+                header {{ 
+                    border-bottom: 2px solid var(--safetymind-primary); 
+                    padding-bottom: 20px; 
+                    margin-bottom: 30px; 
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }}
+                .logo {{ font-weight: 700; font-size: 18pt; color: var(--safetymind-black); }}
+                .accent {{ color: var(--safetymind-primary); }}
+                h1 {{ 
+                    font-size: 24pt; 
+                    margin: 0; 
+                    color: var(--safetymind-black); 
+                    text-transform: uppercase; 
+                    letter-spacing: 1px;
+                }}
+                h2 {{ 
+                    font-size: 14pt; 
+                    color: var(--safetymind-black); 
+                    border-left: 5px solid var(--safetymind-primary); 
+                    padding-left: 10px; 
+                    margin-top: 30px; 
+                    margin-bottom: 15px;
+                }}
+                p {{ margin-bottom: 15px; text-align: justify; }}
+                table {{ 
+                    width: 100%; 
+                    border-collapse: collapse; 
+                    margin-top: 15px; 
+                    font-size: 10pt;
+                }}
+                th, td {{ 
+                    border: 1px solid #ddd; 
+                    padding: 8px 12px; 
+                    text-align: left; 
+                }}
+                th {{ 
+                    background-color: var(--safetymind-light-gray); 
+                    color: var(--safetymind-black); 
+                    font-weight: 700;
+                }}
+                .gantt-container {{ 
+                    text-align: center; 
+                    margin: 30px 0; 
+                    border: 1px solid #ddd; 
+                    padding: 10px;
+                }}
+                .gantt-container img {{ max-width: 100%; height: auto; }}
+                footer {{
+                    position: fixed; 
+                    bottom: 20px; 
+                    width: 100%; 
+                    text-align: center; 
+                    font-size: 8pt; 
+                    color: var(--safetymind-gray);
+                }}
             </style>
         </head>
         <body>
             <header>
-                <div style="float: right; font-weight: bold; font-size: 20px;">SAFETY<span style="color: var(--safetymind-primary);">MIND</span></div>
-                <h1>Informe de Kickoff</h1>
-                <p>Proyecto: {project_info.get('name', 'N/A')}</p>
+                <div>
+                    <h1>Informe de Kickoff</h1>
+                    <span style="font-size: 12pt; color: var(--safetymind-gray);">Proyecto: {project_info.get('name', 'N/A')}</span>
+                </div>
+                <div class="logo">SAFETY<span class="accent">MIND</span></div>
             </header>
 
-            <div class="section">
-                <h2>1. Objetivos del Proyecto</h2>
-                <p>{project_info.get('description', 'Definición de bases y alcance del proyecto de monitoreo.')}</p>
+            <h2>1. Objetivos del Proyecto</h2>
+            <p>{project_info.get('description', 'Definición de bases y alcance del proyecto de monitoreo.')}</p>
+
+            <h2>2. Arquitectura del Sistema</h2>
+            <div style="border: 1px solid #ddd; padding: 15px; background: #f9f9f9;">
+                <p><strong>Descripción de Componentes:</strong></p>
+                <p>{project_info.get('architecture_desc', 'Conexión de cámaras IP -> Servidor Local -> Nube SafetyMind')}</p>
             </div>
 
-            <div class="section">
-                <h2>2. Arquitectura del Sistema</h2>
-                <div class="arch-box">
-                    <p><strong>Diagrama de Componentes:</strong></p>
-                    <p>{project_info.get('architecture_desc', 'Conexión de cámaras IP -> Servidor Local -> Nube SafetyMind')}</p>
-                </div>
+            <h2>3. Cronograma del Proyecto (Ganta)</h2>
+            <div class="gantt-container">
+                <img src="data:image/png;base64,{img_base64}">
             </div>
 
-            <div class="section">
-                <h2>3. Plan de Actividades (Jira)</h2>
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Actividad</th><th>Estado</th></tr>
-                    </thead>
-                    <tbody>
-                        {"".join([f"<tr><td>{a.key}</td><td>{a.fields.summary}</td><td>{a.fields.status.name}</td></tr>" for a in activities])}
-                    </tbody>
-                </table>
-            </div>
+            <h2>4. Plan de Actividades (Jira)</h2>
+            <table>
+                <thead>
+                    <tr><th style="width: 15%;">Calculated ID</th><th>Actividad</th><th style="width: 15%;">Estado</th></tr>
+                </thead>
+                <tbody>
+                    {"".join([f"<tr><td>{a.key}</td><td>{a.fields.summary}</td><td>{a.fields.status.name}</td></tr>" for a in activities])}
+                </tbody>
+            </table>
 
-            <div style="margin-top: 50px; text-align: center; font-size: 10px; color: var(--safetymind-gray);">
-                © {datetime.now().year} SafetyMind - Confidencial
-            </div>
+            <footer>
+                © {datetime.now().year} SafetyMind - Documento Confidencial generado automáticamente.
+            </footer>
         </body>
         </html>
         """
         HTML(string=full_html).write_pdf(filename)
         print(f"Kickoff Report generado: {filename}")
 
-    def generate_progress_status_report(self, progress_data, increments, blockers, filename="avance_report.pdf"):
-        """Generates a progress report with milestones, percentage and blockers."""
+    def generate_progress_status_report(self, progress_data, increments, blockers, all_active_issues=[], filename="avance_report.pdf"):
+        """Generates a progress report with critical path analysis."""
         from datetime import datetime
         
+        critical_path_html = self._generate_critical_path_html(all_active_issues)
+
         full_html = f"""
         <html>
         <head>
             <style>
-                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
                 :root {{
                     --safetymind-primary: #ffed01;
                     --safetymind-black: #000000;
-                    --safetymind-gray: #adadad;
+                    --safetymind-alert: #d32f2f;
                 }}
-                body {{ font-family: 'Montserrat', sans-serif; margin: 30px; font-size: 14px; }}
-                .progress-container {{ background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 20px 0; }}
-                .progress-fill {{ background: var(--safetymind-primary); height: 100%; border-radius: 10px; text-align: right; padding-right: 10px; line-height: 25px; font-weight: bold; }}
-                .blocker-box {{ background: #fff5f5; border-left: 5px solid #ff4d4d; padding: 15px; margin-top: 20px; }}
-                h1 {{ border-bottom: 3px solid var(--safetymind-primary); }}
+                body {{ 
+                    font-family: 'Roboto', sans-serif; 
+                    margin: 40px; 
+                    font-size: 11pt;
+                    color: #333;
+                }}
+                header {{ 
+                    border-bottom: 2px solid var(--safetymind-primary); 
+                    padding-bottom: 20px; 
+                    margin-bottom: 30px; 
+                    display: flex;
+                    justify-content: space-between;
+                }}
+                .header-title h1 {{ margin: 0; font-size: 22pt; text-transform: uppercase; }}
+                .logo {{ font-size: 18pt; font-weight: bold; }}
+                
+                h2 {{ 
+                    font-size: 14pt; 
+                    color: var(--safetymind-black); 
+                    border-bottom: 1px solid #ddd; 
+                    padding-bottom: 5px; 
+                    margin-top: 30px;
+                }}
+
+                .progress-section {{ 
+                    background: #f4f4f4; 
+                    padding: 20px; 
+                    border-radius: 4px; 
+                    margin-bottom: 20px;
+                }}
+                .progress-bar-bg {{ background: #ddd; height: 10px; border-radius: 5px; width: 100%; }}
+                .progress-bar-fill {{ background: var(--safetymind-primary); height: 10px; border-radius: 5px; }}
+                .percentage {{ font-size: 24pt; font-weight: bold; color: var(--safetymind-black); }}
+
+                .critical-path {{ 
+                    border: 1px solid var(--safetymind-alert); 
+                    background-color: #fdecea; 
+                    padding: 15px; 
+                    border-radius: 4px;
+                }}
+                .critical-path li {{ margin-bottom: 10px; list-style-type: none; }}
+                
+                ul {{ padding-left: 20px; }}
+                li {{ margin-bottom: 5px; }}
             </style>
         </head>
         <body>
-            <div style="text-align: right; font-weight: bold; font-size: 20px;">SAFETY<span style="color: var(--safetymind-primary);">MIND</span></div>
-            <h1>Estado de Avance del Proyecto</h1>
+            <header>
+                <div class="header-title">
+                    <h1>Estado de Avance</h1>
+                    <span style="color: #666; font-size: 10pt;">Reporte Ejecutivo de Proyecto</span>
+                </div>
+                <div class="logo">SAFETY<span style="color: var(--safetymind-primary);">MIND</span></div>
+            </header>
             
-            <h3>Progreso General</h3>
-            <div class="progress-container">
-                <div class="progress-fill" style="width: {progress_data.get('percentage', 0)}%">{progress_data.get('percentage', 0)}%</div>
+            <div class="progress-section">
+                <strong>Progreso General del Proyecto</strong>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span class="percentage">{progress_data.get('percentage', 0)}%</span>
+                    <div style="width: 80%;">
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" style="width: {progress_data.get('percentage', 0)}%;"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <h3>Actividades Realizadas</h3>
+            <h2>Ruta Crítica y Riesgos</h2>
+            <div class="critical-path">
+                <p><strong>Atención Requerida (Prioridad Alta / Vencidos):</strong></p>
+                {critical_path_html}
+            </div>
+
+            <h2>Actividades Recientes Completadas</h2>
             <ul>
-                {"".join([f"<li><strong>{i.key}</strong>: {i.fields.summary} - <span style='color:green'>Completado</span></li>" for i in increments])}
+                {"".join([f"<li><strong>{i.key}</strong>: {i.fields.summary}</li>" for i in increments])}
             </ul>
 
-            <h3>Inconvenientes y Bloqueos</h3>
-            <div class="blocker-box">
-                {f"<p>{blockers}</p>" if blockers else "<p>No se reportan bloqueos hasta la fecha.</p>"}
+            <h2>Inconvenientes y Bloqueos Reportados</h2>
+            <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffecb5;">
+                {f"<p>{blockers}</p>" if blockers else "<p>No se reportan bloqueos mayores.</p>"}
             </div>
+
+            <footer style="position: fixed; bottom: 20px; width: 100%; text-align: center; font-size: 8pt; color: #999;">
+                Generado el {datetime.now().strftime('%Y-%m-%d')} | SafetyMind Monitoring
+            </footer>
         </body>
         </html>
         """
@@ -385,7 +557,7 @@ Este informe muestra el progreso de las iniciativas de alto nivel (Épicas) en J
         print(f"Progress Report generado: {filename}")
 
     def generate_final_report(self, implementation_details, deviations, filename="informe_final.pdf"):
-        """Generates a final delivery report with technical details of cameras, IPs, etc."""
+        """Generates a final delivery report with technical details."""
         from datetime import datetime
         
         cameras_html = "".join([f"<tr><td>{c['name']}</td><td>{c['ip']}</td><td>{c['telegram_group']}</td><td>{c['status']}</td></tr>" for c in implementation_details.get('cameras', [])])
@@ -394,24 +566,37 @@ Este informe muestra el progreso de las iniciativas de alto nivel (Épicas) en J
         <html>
         <head>
              <style>
-                @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
                 :root {{ --safetymind-primary: #ffed01; --safetymind-black: #000000; }}
-                body {{ font-family: 'Montserrat', sans-serif; margin: 30px; }}
-                header {{ background: var(--safetymind-black); color: white; padding: 20px; text-align: center; border-bottom: 5px solid var(--safetymind-primary); }}
-                .tech-table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
-                .tech-table th, .tech-table td {{ border: 1px solid #ddd; padding: 10px; }}
-                .tech-table th {{ background: #333; color: white; }}
-                .deviation-box {{ background: #f9f9f9; padding: 15px; border-left: 5px solid var(--safetymind-primary); margin-top: 20px; }}
+                body {{ 
+                    font-family: 'Roboto', sans-serif; 
+                    margin: 40px; 
+                    font-size: 11pt; 
+                    color: #333;
+                }}
+                header {{ 
+                    text-align: center; 
+                    border-bottom: 4px solid var(--safetymind-primary); 
+                    padding-bottom: 20px; 
+                    margin-bottom: 30px;
+                }}
+                h1 {{ font-size: 20pt; text-transform: uppercase; margin: 0; }}
+                h2 {{ font-size: 14pt; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 30px; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 10pt; }}
+                th, td {{ border: 1px solid #ddd; padding: 8px; }}
+                th {{ background: #333; color: white; text-align: left; }}
+                .deviation-box {{ background: #f9f9f9; padding: 15px; border-left: 5px solid var(--safetymind-primary); }}
             </style>
         </head>
         <body>
             <header>
-                <h1>INFORME FINAL DE IMPLEMENTACIÓN</h1>
+                <h1>Informe Final de Implementación</h1>
                 <p>SafetyMind AI Visual Auditing</p>
             </header>
 
-            <h3>1. Detalle Técnico de Instalación (Cámaras)</h3>
-            <table class="tech-table">
+            <h2>1. Detalle Técnico de Instalación</h2>
+            <p>Se listan a continuación los dispositivos configurados y operativos:</p>
+            <table>
                 <thead>
                     <tr><th>Cámara</th><th>Dirección IP</th><th>Grupo Telegram</th><th>Estado</th></tr>
                 </thead>
@@ -420,13 +605,19 @@ Este informe muestra el progreso de las iniciativas de alto nivel (Épicas) en J
                 </tbody>
             </table>
 
-            <h3>2. Modificaciones al Plan Original</h3>
+            <h2>2. Modificaciones al Plan Original</h2>
             <div class="deviation-box">
-                <p>{deviations if deviations else "Implementación realizada según plan original sin desviaciones."}</p>
+                <p>{deviations if deviations else "Implementación realizada sin desviaciones significativas."}</p>
             </div>
 
-            <h3>3. Conclusiones</h3>
-            <p>El sistema se encuentra operativo y transmitiendo alertas en tiempo real.</p>
+            <h2>3. Conclusiones y Cierre</h2>
+            <p>El sistema se encuentra operativo, transmitiendo alertas y visualización en tiempo real. Se ha completado la capacitación a los usuarios finales.</p>
+            
+            <br><br>
+            <div style="text-align: center; margin-top: 50px;">
+                <p>__________________________</p>
+                <p>Firma de Conformidad</p>
+            </div>
         </body>
         </html>
         """
